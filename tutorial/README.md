@@ -104,9 +104,9 @@ open rca.png
 This command:
 
 1. Parses `rca.v`
-2. Converts the Verilog into a safety-net netlist
-3. Runs the existing `dot-graph` pass
-4. Uses Graphviz to create `rca.png`
+1. Converts the Verilog into a safety-net netlist
+1. Runs the existing `dot-graph` pass
+1. Uses Graphviz to create `rca.png`
 
 The first three full adders form a carry chain:
 
@@ -122,8 +122,7 @@ The complete chain should instead be:
 fa_0 --carry[0]--> fa_1 --carry[1]--> fa_2 --carry[2]--> fa_3
 ```
 
-
-## 3. Test the broken circuit 
+## 3. Test the broken circuit
 
 Run the provided Verilator test before fixing anything:
 
@@ -198,7 +197,6 @@ OK: 15 + 15 = 30
 ```
 
 At this point, we know the original circuit works correctly. This gives us a baseline. If the circuit stops working after our transformation, the transformation introduced the problem.
-
 
 ## 6. Apply the starter pass
 
@@ -300,11 +298,11 @@ Connect an input to a different driver.
 A useful approach is:
 
 1. Find the `A` input
-2. Find the `B` input
-3. Save both original drivers
-4. Connect `A` to the original `B` driver
-5. Connect `B` to the original `A` driver
-6. Count how many full adders were modified
+1. Find the `B` input
+1. Save both original drivers
+1. Connect `A` to the original `B` driver
+1. Connect `B` to the original `A` driver
+1. Count how many full adders were modified
 
 It is important to save **both original drivers before changing either connection**.
 
@@ -336,7 +334,6 @@ If you want to apply the reference solution immediately after `make patch`, run:
 ```bash
 make solution
 ```
-
 
 ## 8. Verify the structural change
 
@@ -393,8 +390,8 @@ All 256 cases should pass.
 Congratulations! Here's what you accomplished:
 
 1. Compile Verilog into a safety-net netlist
-2. Find cells of a specific type
-3. Inspect and modify their connections
-4. Visualize the transformed structure
-5. Emit the transformed netlist as Verilog
-6. Verify that the transformation preserves behavior
+1. Find cells of a specific type
+1. Inspect and modify their connections
+1. Visualize the transformed structure
+1. Emit the transformed netlist as Verilog
+1. Verify that the transformation preserves behavior
