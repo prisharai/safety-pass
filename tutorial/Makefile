@@ -1,8 +1,8 @@
 
-.PHONY: clean test patch
+.PHONY: clean test patch solution
 
 clean:
-	rm -rf obj_dir rca.png
+	rm -rf obj_dir rca.png obj_dir_swapped rca_swapped.png rca_swapped.v
 
 test: obj_dir/Vrca
 	./obj_dir/Vrca
@@ -18,3 +18,7 @@ rca.png: rca.v
 # Gives you the boilerplate code for a new pass
 patch: pass_template.patch
 	cd .. && git apply tutorial/pass_template.patch
+
+# Applies the reference solution after the starter patch
+solution: pass_solution.patch
+	cd .. && git apply tutorial/pass_solution.patch
