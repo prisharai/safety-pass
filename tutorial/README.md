@@ -104,9 +104,9 @@ open rca.png
 This command:
 
 1. Parses `rca.v`
-1. Converts the Verilog into a safety-net netlist
-1. Runs the existing `dot-graph` pass
-1. Uses Graphviz to create `rca.png`
+2. Converts the Verilog into a safety-net netlist
+3. Runs the existing `dot-graph` pass
+4. Uses Graphviz to create `rca.png`
 
 The first three full adders form a carry chain:
 
@@ -298,11 +298,11 @@ Connect an input to a different driver.
 A useful approach is:
 
 1. Find the `A` input
-1. Find the `B` input
-1. Save both original drivers
-1. Connect `A` to the original `B` driver
-1. Connect `B` to the original `A` driver
-1. Count how many full adders were modified
+2. Find the `B` input
+3. Save both original drivers
+4. Connect `A` to the original `B` driver
+5. Connect `B` to the original `A` driver
+6. Count how many full adders were modified
 
 It is important to save **both original drivers before changing either connection**.
 
@@ -390,8 +390,8 @@ All 256 cases should pass.
 Congratulations! Here's what you accomplished:
 
 1. Compile Verilog into a safety-net netlist
-1. Find cells of a specific type
-1. Inspect and modify their connections
-1. Visualize the transformed structure
-1. Emit the transformed netlist as Verilog
-1. Verify that the transformation preserves behavior
+2. Find cells of a specific type
+3. Inspect and modify their connections
+4. Visualize the transformed structure
+5. Emit the transformed netlist as Verilog
+6. Verify that the transformation preserves behavior
