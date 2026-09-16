@@ -9,14 +9,23 @@ Tutorial walking through inspecting, repairing, transforming, and testing a circ
 - **Graphviz** - turn a DOT graph into an image
 - **Verilator** - simulate & test the Verilog circuit
 
-Installation commands (macOS, Homebrew):
+Installation commands:
+
+**macOS (Homebrew):**
 
 ```bash
 brew install graphviz
 brew install verilator
 ```
 
-Verify everything is available:
+**Ubuntu/Debian:**
+
+```bash
+sudo apt update
+sudo apt install graphviz verilator
+```
+
+Verify everything is available on either system:
 
 ```bash
 git --version
@@ -29,17 +38,13 @@ verilator --version
 
 If you see:
 
-```text
-dot: command not found
-```
+> `dot: command not found`
 
 install Graphviz. The Rust `Broken pipe` message is only a consequence of the missing `dot` command.
 
 If you see:
 
-```text
-make: verilator: No such file or directory
-```
+> `make: verilator: No such file or directory`
 
 install Verilator and run the command again.
 
@@ -51,13 +56,26 @@ command -v dot
 command -v verilator
 ```
 
-If `command -v` prints nothing, the executable is not currently visible through your `PATH`. If you installed the program with Homebrew, you can also run:
+If `command -v` prints nothing, the executable is not currently visible through your `PATH`.
+
+**macOS (Homebrew):**
+
+You can find Homebrew's installation directory with:
 
 ```bash
 brew --prefix
 ```
 
-and verify that Homebrew's `bin` directory is included in your `PATH`.
+Make sure its `bin` directory is included in your `PATH`.
+
+**Ubuntu/Debian:**
+
+Programs installed with `apt` are normally placed in standard locations such as `/usr/bin`, which should already be in your `PATH`. You can check with:
+
+```bash
+ls -l /usr/bin/dot
+ls -l /usr/bin/verilator
+```
 
 ## 1. Download the tutorial, create a work branch
 
@@ -73,7 +91,7 @@ Enter the repository:
 cd safety-pass
 ```
 
-The entire repo is required because the tutorial files depend on `safety-net`, `safety-pass`, and `nl_opt` code elsewhere in the project.
+The entire repo is required because the tutorial files depend on the [`safety-net` dependency](../safety-pass/Cargo.toml#L37-L42), the [`safety-pass` library](../safety-pass/), and the [`nl_opt` command-line entry point](../nl_opt/src/main.rs) elsewhere in the project.
 
 Before making any changes, create a separate branch:
 
@@ -89,16 +107,33 @@ cd tutorial
 
 ## 2. Visualize the broken circuit
 
-Generate an image of the ripple-carry adder:
+Generate an image of the netlist:
 
 ```bash
 make rca.png
 ```
 
-Open the image on macOS:
+`make` reads the tutorial's [`Makefile`](./Makefile) and runs [the recipe associated with the `rca.png` target](./Makefile#L14-L16). It also tracks dependencies, so it only rebuilds `rca.png` when the file is missing or [`rca.v`](./rca.v) has changed.
+
+For this target, `make` runs:
+
+`cargo run --release --quiet -- rca.v -p dot-graph | dot -Tpng > rca.png`
+
+This runs `safety-pass` on [`rca.v`](./rca.v) with the [`dot-graph` pass](../safety-pass/src/passes.rs#L87-L112), pipes the resulting DOT graph into Graphviz (`dot -Tpng`), and writes the rendered image to `rca.png`.
+
+
+Open the generated image:
+
+**macOS:**
 
 ```bash
 open rca.png
+```
+
+**Ubuntu with a desktop environment:**
+
+```bash
+xdg-open rca.png
 ```
 
 This command:
@@ -108,61 +143,49 @@ This command:
 3. Runs the existing `dot-graph` pass
 4. Uses Graphviz to create `rca.png`
 
-The first three full adders form a carry chain:
+In [the RCA implementation](./rca.v#L12-L44), the first three full adders form a carry chain:
 
-```text
-fa_0 --carry[0]--> fa_1 --carry[1]--> fa_2
-```
+> `fa_0 --carry[0]--> fa_1 --carry[1]--> fa_2`
 
-However, `fa_3` is not connected to that chain. There is no wire from `carry[2]` entering the `CI` port of `fa_3`.
+However, [`fa_3` is not connected to that chain](./rca.v#L38-L44). There is no wire from `carry[2]` entering the `CI` port of `fa_3`.
 
 The complete chain should instead be:
 
-```text
-fa_0 --carry[0]--> fa_1 --carry[1]--> fa_2 --carry[2]--> fa_3
-```
+> `fa_0 --carry[0]--> fa_1 --carry[1]--> fa_2 --carry[2]--> fa_3`
 
 ## 3. Test the broken circuit
 
-Run the provided Verilator test before fixing anything:
+Run the provided Verilator test before fixing anything. [The `test` target](./Makefile#L7-L8) runs the executable built by [the Verilator build target](./Makefile#L10-L12) from [`rca_main.cpp`](./rca_main.cpp):
 
 ```bash
 make test
 ```
 
-The first failing case should be:
+The first failing case, reported by [the testbench's result check](./rca_main.cpp#L14-L20), should be:
 
-```text
-ERROR: 1 + 7 != 0
-```
+> `ERROR: 1 + 7 != 0`
 
 Why does `1 + 7` expose the bug?
 
-```text
-1 + 7 = 8 = 1000₂
-```
+> `1 + 7 = 8 = 1000₂`
 
 Producing the `1` in the highest output position requires a carry to propagate from `fa_2` into `fa_3`. Because that connection is missing, the final full adder never receives the carry.
 
-Earlier input pairs do not require that particular carry connection, which is why this is the first failing case.
+Earlier input pairs do not require that particular carry connection, which is why this is the first failing case. The testbench reaches it while trying all 256 input pairs with [two nested loops](./rca_main.cpp#L8-L23).
 
 ## 4. Repair the broken circuit
 
-Open `rca.v` and find the `fa_3` full adder. Its carry-input connection is commented out:
+Open [`rca.v` at the `fa_3` full adder](./rca.v#L38-L44). Its [carry-input connection](./rca.v#L41) is commented out:
 
-```verilog
-// .CI(carry[2]),
-```
+`// .CI(carry[2]),`
 
 Remove the two slashes:
 
-```verilog
-.CI(carry[2]),
-```
+`.CI(carry[2]),`
 
 This connects the carry output from `fa_2` to the carry input of `fa_3`.
 
-Regenerate the image:
+Regenerate the image with [the same `rca.png` Makefile target](./Makefile#L14-L16):
 
 ```bash
 make -B rca.png
@@ -170,39 +193,43 @@ make -B rca.png
 
 The `-B` forces `make` to rebuild the image. Open it again:
 
+**macOS:**
+
 ```bash
 open rca.png
+```
+
+**Ubuntu with a desktop environment:**
+
+```bash
+xdg-open rca.png
 ```
 
 The graph should now show `carry[2]` connecting `fa_2` to the `CI` port of `fa_3`
 
 ## 5. Test the repaired circuit
 
-Run a provided Verilator test:
+Run a provided Verilator test with [the `test` Makefile target](./Makefile#L7-L8):
 
 ```bash
 make test
 ```
 
-A four-bit input can represent the numbers 0 through 15; the test tries every pair of inputs giving:
+A four-bit input can represent the numbers 0 through 15; [the test's nested loops](./rca_main.cpp#L8-L23) try every pair of inputs, from `0 + 0` through `15 + 15`, giving:
 
-```text
-16 × 16 = 256 test cases
-```
+> 16 × 16 = 256 test cases
 
 Every line should say `OK` and the final line should be:
 
-```text
-OK: 15 + 15 = 30
-```
+> `OK: 15 + 15 = 30`
 
 At this point, we know the original circuit works correctly. This gives us a baseline. If the circuit stops working after our transformation, the transformation introduced the problem.
 
-## 6. Apply the starter pass
+## 6. Make your own starter pass
 
 Before implementing the transformation, it helps to understand what a **compiler pass** is.
 
-A compiler generally represents its input using an internal data structure called an **intermediate representation**, or IR. Here, the IR is a `safety-net` **netlist**: a graph containing hardware cells and the wires connecting them.
+A compiler generally represents its input using an internal data structure called an **intermediate representation**, or IR. Here, the IR is a [`safety-net` dependency](../safety-pass/Cargo.toml#L37-L38) **netlist**: a graph containing hardware cells and the wires connecting them.
 
 A **compiler pass** performs one operation over that representation. A pass might:
 
@@ -211,46 +238,38 @@ A **compiler pass** performs one operation over that representation. A pass migh
 - modify the circuit
 - produce another representation such as a graph or Verilog
 
-`safety-pass` contains these analyses and transformations, and `nl_opt` allows passes to be run from the command line.
+The [`safety-pass` pass implementations](../safety-pass/src/passes.rs) contain these analyses and transformations, and [`nl_opt`](../nl_opt/src/main.rs#L83-L162) allows passes to be run from the command line.
 
-For this tutorial, you will implement a pass called `MyPass`.
+For this tutorial, you will implement a pass called [`MyPass`](./pass_template.patch#L9-L30).
 
-Rather than manually writing all the boilerplate required to add a new pass, the tutorial provides:
+Rather than manually writing all the boilerplate required to add a new pass, the tutorial provides [`pass_template.patch`](./pass_template.patch):
 
-```text
-pass_template.patch
-```
+`pass_template.patch`
 
-This patch contains the **starter code needed to add and register a new compiler pass with `nl_opt`**. The actual transformation is intentionally left unfinished for you to implement.
+This patch contains the **starter code needed to [add](./pass_template.patch#L9-L30) and [register](./pass_template.patch#L35-L42) a new compiler pass with `nl_opt`**. The [`todo!`](./pass_template.patch#L24-L26) intentionally leaves the actual transformation unfinished for you to implement.
 
-Apply it with:
+Apply it with [the `patch` Makefile target](./Makefile#L18-L20):
 
 ```bash
 make patch
 ```
 
-This applies `pass_template.patch` which adds a new pass named `MyPass` to:
-
-```text
-safety-pass/src/passes.rs
-```
+This applies [`pass_template.patch`](./pass_template.patch), which adds a new pass named [`MyPass`](./pass_template.patch#L9-L30) to [`safety-pass/src/passes.rs`](../safety-pass/src/passes.rs).
 
 Only run `make patch` once. Running it again will fail because the changes have already been applied.
 
 The important unfinished portion is:
 
-```rust
-for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
-    todo!("Do something with this full adder cell! Swap A and B?")
-}
-```
+>     for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
+>         todo!("Do something with this full adder cell! Swap A and B?")
+>     }
 
-> Find every cell in the netlist whose type is `FA` then perform some operation on it.
+> Find every cell in the netlist whose type is [`CellType::FA`](../safety-pass/src/cells.rs#L68) then perform some operation on it.
 
-The patch also registers `MyPass` with the command-line program. This allows it to be selected using
+The patch also [registers `MyPass`](./pass_template.patch#L35-L42) with the command-line program. This makes `-p my-pass` available through the pass registry and allows it to be selected using:
 
 ```bash
--p my-pass
+nl_opt -p my-pass
 ```
 
 ## 7. Implement the transformation
@@ -259,39 +278,29 @@ Your goal is to modify every full adder so that its `A` and `B` inputs are swapp
 
 Before:
 
-```text
-a[i] -> A
-b[i] -> B
-```
+>     a[i] -> A
+>     b[i] -> B
 
 After:
 
-```text
-b[i] -> A
-a[i] -> B
-```
+>     b[i] -> A
+>     a[i] -> B
 
-This should not change the behavior of the circuit because the full-adder logic treats `A` and `B` symmetrically.
+This should not change the behavior of the circuit because [the full-adder logic](./cells.v#L2-L13) treats `A` and `B` symmetrically.
 
-Implement the transformation inside `MyPass`.
+Implement the transformation inside the unfinished [`MyPass`](./pass_template.patch#L9-L30).
 
 Some useful methods are:
 
-```rust
-find_input(...)
-```
+[`find_input(...)`](https://matth2k.github.io/safety-pass/safety_net/trait.Instantiable.html#method.find_input)
 
 Find an input port belonging to a cell.
 
-```rust
-get_driver()
-```
+[`get_driver()`](https://matth2k.github.io/safety-pass/safety_net/struct.InputPort.html#method.get_driver)
 
 Find the net currently driving that input.
 
-```rust
-connect(...)
-```
+[`connect(...)`](https://matth2k.github.io/safety-pass/safety_net/struct.InputPort.html#method.connect)
 
 Connect an input to a different driver.
 
@@ -304,7 +313,7 @@ A useful approach is:
 5. Connect `B` to the original `A` driver
 6. Count how many full adders were modified
 
-It is important to save **both original drivers before changing either connection**.
+It is important to make **temporary variables** to save the original drivers such that they can be swapped.
 
 Check and run the implementation:
 
@@ -315,29 +324,23 @@ cargo run --release --quiet -- rca.v -p my-pass
 
 Should report:
 
-```text
-Swapped A and B inputs on 4 full adders
-```
+> `Swapped A and B inputs on 4 full adders`
 
-A reference solution is provided separately in:
+A reference solution is provided separately in [`pass_solution.patch`](./pass_solution.patch).
 
-```text
-pass_solution.patch
-```
-
-It is intentionally separate from `pass_template.patch` so that the solution itself is not part of the normal `safety-pass` source code.
+It [changes the template into a finished implementation](./pass_solution.patch#L14-L44) and is intentionally separate from [`pass_template.patch`](./pass_template.patch) so that the solution itself is not part of the normal `safety-pass` source code.
 
 The solution patch assumes that `pass_template.patch` has already been applied and that `MyPass` is still in its original starter state.
 
-If you want to apply the reference solution immediately after `make patch`, run:
+If you want to apply the reference solution immediately after `make patch`, [the `solution` Makefile target](./Makefile#L22-L24) applies [`pass_solution.patch`](./pass_solution.patch):
 
 ```bash
 make solution
 ```
 
-## 8. Verify the structural change
+## 8. Observing the structural change
 
-Run `MyPass` followed by `dot-graph` in the same pipeline:
+Run `MyPass` followed by the [`dot-graph` pass](../safety-pass/src/passes.rs#L87-L112) in the same pipeline (the [`nl_opt` pipeline handling](../nl_opt/src/main.rs#L125-L137) preserves that order):
 
 ```bash
 cargo run --release --quiet -- rca.v \
@@ -346,7 +349,21 @@ cargo run --release --quiet -- rca.v \
     dot -Tpng > rca_swapped.png
 ```
 
-`MyPass` first modifies the in memory netlist and `dot-graph` then visualizes the modified version
+`MyPass` first modifies the in-memory netlist and `dot-graph` then visualizes the modified version.
+
+Open the result:
+
+**macOS:**
+
+```bash
+open rca_swapped.png
+```
+
+**Ubuntu with a desktop environment:**
+
+```bash
+xdg-open rca_swapped.png
+```
 
 In `rca_swapped.png` verify:
 
@@ -356,7 +373,7 @@ In `rca_swapped.png` verify:
 
 ## 9. Verify that behavior is preserved
 
-Emit the transformed netlist as Verilog:
+Emit the transformed netlist as Verilog with the [`print-verilog` pass](../safety-pass/src/passes.rs#L62-L85):
 
 ```bash
 cargo run --release --quiet -- rca.v \
@@ -365,7 +382,7 @@ cargo run --release --quiet -- rca.v \
     > rca_swapped.v
 ```
 
-Compile the transformed circuit in a separate Verilator build directory:
+Compile the transformed circuit in a separate Verilator build directory, reusing [`rca_main.cpp`](./rca_main.cpp) as the testbench:
 
 ```bash
 verilator --cc --exe --build \
@@ -375,7 +392,7 @@ verilator --cc --exe --build \
     rca_main.cpp cells.v rca_swapped.v
 ```
 
-`cells.v` is included because `rca_swapped.v` contains the transformed `rca` module but still relies on the separate `FA` module definition
+[`cells.v`](./cells.v) is included because `rca_swapped.v` contains the transformed `rca` module but still relies on [the separate `FA` module definition](./cells.v#L2-L13).
 
 Run the transformed simulation:
 
@@ -383,7 +400,7 @@ Run the transformed simulation:
 ./obj_dir_swapped/Vrca
 ```
 
-All 256 cases should pass.
+[All 256 cases](./rca_main.cpp#L8-L23) should pass.
 
 ## Summary of the workflow
 
