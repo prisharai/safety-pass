@@ -1,8 +1,21 @@
 # safety-pass Beginner Tutorial
 
-Tutorial walking through inspecting, repairing, transforming, and testing a circuit using safety-pass
+Build, inspect, rewrite, and verify Verilog netlists with composable Rust compiler passes. Safety Pass gives hardware developers a fast path from an optimization idea to a testable transformation without building an entire compiler framework first.
+
+Circuit transformations are easy to describe and surprisingly difficult to implement safely. Safety Pass handles traversal, reusable rewriting, pass ordering, Verilog I/O, visualization, and structural verification so you can concentrate on the optimization itself. Use Safety Pass to prototype synthesis optimizations, inspect unfamiliar netlists, teach compiler transformations, debug connectivity, or build specialized Verilog tooling.
+
+Safety Pass keeps the entire optimization loop in one composable workflow: parse → inspect → transform → visualize → emit → verify
+
+## Capabilities 
+
+- Parse Verilog into a programmable netlist.
+  - Chain analyses and transformations in a deterministic order.
+  - Apply greedy rewrites to a fixed point.
+  - Emit Verilog or DOT graphs and verify after each pass.
 
 ## Prerequisites
+
+The guided tutorial starts with a broken ripple-carry adder, finds the missing connection exposed by 1 + 7, transforms all 4 full adders, and verifies the result across all 256 possible four-bit input pairs.
 
 - **Git** - download the repository
 - **Rust and Cargo** - compile and run safety-pass
@@ -412,3 +425,9 @@ Congratulations! Here's what you accomplished:
 4. Visualize the transformed structure
 5. Emit the transformed netlist as Verilog
 6. Verify that the transformation preserves behavior
+
+## Interested? 
+
+Try it: install nl_opt and run a built-in pass.
+Learn it: complete the circuit-repair tutorial.
+Extend it: implement a reusable Rust pass or rewrite pattern.
