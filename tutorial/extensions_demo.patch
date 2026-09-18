@@ -1,0 +1,107 @@
+diff --git a/safety-pass/examples/extensions.rs b/safety-pass/examples/extensions.rs
+new file mode 100644
+index 0000000..1bb0220
+--- /dev/null
++++ b/safety-pass/examples/extensions.rs
+@@ -0,0 +1,101 @@
++use safety_net::{Error, Identifier, Instantiable, Logic, Net, Netlist, Parameter};
++use safety_pass::{Pass, passes::CellStats};
++use std::marker::PhantomData;
++
++// This representation deliberately stores only what this demo needs.
++#[derive(Debug, Clone)]
++struct MiniCell {
++    name: Identifier,
++    inputs: Vec<Net>,
++    outputs: Vec<Net>,
++}
++
++impl MiniCell {
++    fn buffer() -> Self {
++        Self {
++            name: "MINI_BUF".into(),
++            inputs: vec![Net::new_logic("A".into())],
++            outputs: vec![Net::new_logic("Y".into())],
++        }
++    }
++}
++
++// Boilerplate hidden by the tutorial patch: this adapts MiniCell to the
++// capabilities required by safety-net's common graph API.
++impl Instantiable for MiniCell {
++    fn get_name(&self) -> &Identifier {
++        &self.name
++    }
++
++    fn get_input_ports(&self) -> &[Net] {
++        &self.inputs
++    }
++
++    fn get_output_ports(&self) -> &[Net] {
++        &self.outputs
++    }
++
++    fn get_parameter(&self, _id: &Identifier) -> Option<Parameter> {
++        None
++    }
++
++    fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
++        panic!("MiniCell does not support parameters")
++    }
++
++    fn clear_parameter(&mut self, _id: &Identifier) -> Option<Parameter> {
++        None
++    }
++
++    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
++        Vec::new()
++    }
++
++    fn from_constant(_val: Logic) -> Option<Self> {
++        None
++    }
++
++    fn get_constant(&self) -> Option<Logic> {
++        None
++    }
++
++    fn is_seq(&self) -> bool {
++        false
++    }
++}
++
++fn reference_counting_demo() {
++    let netlist = Netlist::new("reference_counting".into());
++    let candidate = netlist.insert_gate_disconnected(MiniCell::buffer(), "unused".into());
++    let held_reference = candidate.clone();
++
++    let blocked = netlist.clean().unwrap_err();
++    assert!(matches!(blocked, Error::DanglingReference(_)));
++    println!("live reference: {blocked}");
++
++    drop(candidate);
++    drop(held_reference);
++    let removed = netlist.clean().unwrap();
++    println!("released references: removed {} object", removed.len());
++}
++
++fn type_generic_demo() {
++    let netlist: std::rc::Rc<Netlist<MiniCell>> = Netlist::new("custom_cells".into());
++    let input = netlist.insert_input("a".into());
++
++    let first = netlist
++        .insert_gate(MiniCell::buffer(), "first".into(), &[input])
++        .unwrap();
++    netlist
++        .insert_gate(MiniCell::buffer(), "second".into(), &[first.get_output(0)])
++        .unwrap()
++        .expose_with_name("y".into());
++
++    let pass = CellStats::<MiniCell>(PhantomData);
++    println!("generic pass:\n{}", pass.run(&netlist).unwrap());
++}
++
++fn main() {
++    reference_counting_demo();
++    type_generic_demo();
++}

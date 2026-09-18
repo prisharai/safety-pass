@@ -6,7 +6,7 @@ Circuit transformations are easy to describe and surprisingly difficult to imple
 
 Safety Pass keeps the entire optimization loop in one composable workflow: parse → inspect → transform → visualize → emit → verify
 
-## Capabilities 
+## Capabilities
 
 - Parse Verilog into a programmable netlist.
   - Chain analyses and transformations in a deterministic order.
@@ -133,7 +133,6 @@ For this target, `make` runs:
 `cargo run --release --quiet -- rca.v -p dot-graph | dot -Tpng > rca.png`
 
 This runs `safety-pass` on [`rca.v`](./rca.v) with the [`dot-graph` pass](../safety-pass/src/passes.rs#L87-L112), pipes the resulting DOT graph into Graphviz (`dot -Tpng`), and writes the rendered image to `rca.png`.
-
 
 Open the generated image:
 
@@ -273,9 +272,11 @@ Only run `make patch` once. Running it again will fail because the changes have 
 
 The important unfinished portion is:
 
->     for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
->         todo!("Do something with this full adder cell! Swap A and B?")
->     }
+> ```
+> for cell in netlist.matches(|p| p.get_type() == CellType::FA) {
+>     todo!("Do something with this full adder cell! Swap A and B?")
+> }
+> ```
 
 > Find every cell in the netlist whose type is [`CellType::FA`](../safety-pass/src/cells.rs#L68) then perform some operation on it.
 
@@ -291,13 +292,17 @@ Your goal is to modify every full adder so that its `A` and `B` inputs are swapp
 
 Before:
 
->     a[i] -> A
->     b[i] -> B
+> ```
+> a[i] -> A
+> b[i] -> B
+> ```
 
 After:
 
->     b[i] -> A
->     a[i] -> B
+> ```
+> b[i] -> A
+> a[i] -> B
+> ```
 
 This should not change the behavior of the circuit because [the full-adder logic](./cells.v#L2-L13) treats `A` and `B` symmetrically.
 
@@ -426,8 +431,12 @@ Congratulations! Here's what you accomplished:
 5. Emit the transformed netlist as Verilog
 6. Verify that the transformation preserves behavior
 
-## Interested? 
+## Interested?
 
 Try it: install nl_opt and run a built-in pass.
 Learn it: complete the circuit-repair tutorial.
 Extend it: implement a reusable Rust pass or rewrite pattern.
+
+## Further extensions
+
+If you want to go deeper into the design of `safety-net`, continue to the [extensions demo](./EXTENSIONS.md), which explores its reference-counted safety and type-generic API.

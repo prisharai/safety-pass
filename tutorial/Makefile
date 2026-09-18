@@ -1,5 +1,5 @@
 
-.PHONY: clean test patch solution
+.PHONY: clean test patch solution extensions-patch extensions-clean
 
 clean:
 	rm -rf obj_dir rca.png obj_dir_swapped rca_swapped.png rca_swapped.v
@@ -22,3 +22,11 @@ patch: pass_template.patch
 # Applies the reference solution after the starter patch
 solution: pass_solution.patch
 	cd .. && git apply tutorial/pass_solution.patch
+
+# Adds the self-contained reference-counting and type-generic extensions demo
+extensions-patch: extensions_demo.patch
+	cd .. && git apply tutorial/extensions_demo.patch
+
+# Removes the extensions demo after you finish experimenting
+extensions-clean: extensions_demo.patch
+	cd .. && git apply --reverse tutorial/extensions_demo.patch
