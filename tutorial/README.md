@@ -438,5 +438,3 @@ Try it: install nl_opt and run a built-in pass.
 Learn it: complete the circuit-repair tutorial.
 
 Extend it: implement a reusable Rust pass or rewrite pattern.
-
-
