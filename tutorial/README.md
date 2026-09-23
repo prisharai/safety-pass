@@ -1,6 +1,6 @@
 # safety-pass Beginner Tutorial
 
-Build, inspect, rewrite, and verify Verilog netlists with composable Rust compiler passes. Safety Pass gives hardware developers a fast path from an optimization idea to a testable transformation without building an entire compiler framework first.
+Safety-pass is a toolchain that allows you to build, inspect, rewrite, and verify Verilog netlists with composable Rust compiler passes. Safety Pass gives hardware developers a fast path from an optimization idea to a testable transformation without building an entire compiler framework first.
 
 Circuit transformations are easy to describe and surprisingly difficult to implement safely. Safety Pass handles traversal, reusable rewriting, pass ordering, Verilog I/O, visualization, and structural verification so you can concentrate on the optimization itself. Use Safety Pass to prototype synthesis optimizations, inspect unfamiliar netlists, teach compiler transformations, debug connectivity, or build specialized Verilog tooling.
 
