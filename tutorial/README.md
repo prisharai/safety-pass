@@ -434,9 +434,9 @@ Congratulations! Here's what you accomplished:
 ## Interested?
 
 Try it: install nl_opt and run a built-in pass.
+
 Learn it: complete the circuit-repair tutorial.
+
 Extend it: implement a reusable Rust pass or rewrite pattern.
 
-## Further extensions
 
-If you want to go deeper into the design of `safety-net`, continue to the [extensions demo](./EXTENSIONS.md), which explores its reference-counted safety and type-generic API.
