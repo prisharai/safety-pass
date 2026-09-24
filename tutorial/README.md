@@ -1,21 +1,21 @@
 # safety-pass Beginner Tutorial
 
-Safety-pass is a toolchain that allows you to build, inspect, rewrite, and verify Verilog netlists with composable Rust compiler passes. Safety Pass gives hardware developers a fast path from an optimization idea to a testable transformation without building an entire compiler framework first.
+Safety Pass is a toolchain that allows you to build, inspect, and rewrite Verilog netlists with composable compiler passes written in Rust. Safety Pass gives hardware developers a fast path from an optimization idea to a testable implementation without needing to build an entire compiler framework first.
 
-Circuit transformations are easy to describe and surprisingly difficult to implement safely. Safety Pass handles traversal, reusable rewriting, pass ordering, Verilog I/O, visualization, and structural verification so you can concentrate on the optimization itself. Use Safety Pass to prototype synthesis optimizations, inspect unfamiliar netlists, teach compiler transformations, debug connectivity, or build specialized Verilog tooling.
+Broadly speaking, circuit transformations are easy to describe but surprisingly difficult to implement *safely*. Safety Pass provides graph traversals, reusable rewriting patterns, pass pipelines, and visualization that all abides by a reference-counted definition of memory safety. Safety Pass can be used to prototype synthesis optimizations, inspect unfamiliar netlists, teach compiler transformations, debug wire connectivity, or build specialized Verilog tooling.
 
-Safety Pass keeps the entire optimization loop in one composable workflow: parse → inspect → transform → visualize → emit → verify
+Safety Pass's provided `nl_opt` tool keeps the entire optimization loop in one composable workflow: parse → transform → verify → emit.
 
-## Capabilities
+## Some Misc. Capabilities
 
 - Parse Verilog into a programmable netlist.
-  - Chain analyses and transformations in a deterministic order.
-  - Apply greedy rewrites to a fixed point.
-  - Emit Verilog or DOT graphs and verify after each pass.
+- Chain analyses and transformations in a reconfigurable order.
+- Apply greedy rewrites to a fixed point.
+- Emit Verilog or DOT graphs and verify structure after each pass.
 
 ## Prerequisites
 
-The guided tutorial starts with a broken ripple-carry adder, finds the missing connection exposed by 1 + 7, transforms all 4 full adders, and verifies the result across all 256 possible four-bit input pairs.
+The guided tutorial starts with a broken ripple-carry adder, finds the buggy connection, experiments with a transform on all 4 full adders, and verifies the result across all 256 possible four-bit input pairs. However, you do need some basic external tools:
 
 - **Git** - download the repository
 - **Rust and Cargo** - compile and run safety-pass
@@ -148,12 +148,12 @@ open rca.png
 xdg-open rca.png
 ```
 
-This command:
+To reiterate, we have:
 
-1. Parses `rca.v`
-2. Converts the Verilog into a safety-net netlist
-3. Runs the existing `dot-graph` pass
-4. Uses Graphviz to create `rca.png`
+1. Parsed `rca.v`
+2. Converted the Verilog into a safety-net netlist
+3. Ran the existing `dot-graph` pass
+4. Used Graphviz to create `rca.png`
 
 In [the RCA implementation](./rca.v#L12-L44), the first three full adders form a carry chain:
 
@@ -183,11 +183,9 @@ Why does `1 + 7` expose the bug?
 
 Producing the `1` in the highest output position requires a carry to propagate from `fa_2` into `fa_3`. Because that connection is missing, the final full adder never receives the carry.
 
-Earlier input pairs do not require that particular carry connection, which is why this is the first failing case. The testbench reaches it while trying all 256 input pairs with [two nested loops](./rca_main.cpp#L8-L23).
-
 ## 4. Repair the broken circuit
 
-Open [`rca.v` at the `fa_3` full adder](./rca.v#L38-L44). Its [carry-input connection](./rca.v#L41) is commented out:
+Open [`rca.v` at the `fa_3` full adder](./rca.v#L38-L44). Its [carry-input connection](./rca.v#L41) is erroneously commented out:
 
 `// .CI(carry[2]),`
 
@@ -200,24 +198,10 @@ This connects the carry output from `fa_2` to the carry input of `fa_3`.
 Regenerate the image with [the same `rca.png` Makefile target](./Makefile#L14-L16):
 
 ```bash
-make -B rca.png
+make rca.png
 ```
 
-The `-B` forces `make` to rebuild the image. Open it again:
-
-**macOS:**
-
-```bash
-open rca.png
-```
-
-**Ubuntu with a desktop environment:**
-
-```bash
-xdg-open rca.png
-```
-
-The graph should now show `carry[2]` connecting `fa_2` to the `CI` port of `fa_3`
+Rebuild the image, and open it again. The graph should now show `carry[2]` connecting `fa_2` to the `CI` port of `fa_3`
 
 ## 5. Test the repaired circuit
 
@@ -237,11 +221,11 @@ Every line should say `OK` and the final line should be:
 
 At this point, we know the original circuit works correctly. This gives us a baseline. If the circuit stops working after our transformation, the transformation introduced the problem.
 
-## 6. Make your own starter pass
+## 6. Make your own `nl_opt` pass
 
 Before implementing the transformation, it helps to understand what a **compiler pass** is.
 
-A compiler generally represents its input using an internal data structure called an **intermediate representation**, or IR. Here, the IR is a [`safety-net` dependency](../safety-pass/Cargo.toml#L37-L38) **netlist**: a graph containing hardware cells and the wires connecting them.
+A compiler generally represents its input using an internal data structure called an **intermediate representation**, or IR. Here, the IR is a [`safety-net` dependency](https://crates.io/crates/safety-net) **netlist**: a graph containing hardware cells and the wires connecting them.
 
 A **compiler pass** performs one operation over that representation. A pass might:
 
@@ -258,7 +242,7 @@ Rather than manually writing all the boilerplate required to add a new pass, the
 
 `pass_template.patch`
 
-This patch contains the **starter code needed to [add](./pass_template.patch#L9-L30) and [register](./pass_template.patch#L35-L42) a new compiler pass with `nl_opt`**. The [`todo!`](./pass_template.patch#L24-L26) intentionally leaves the actual transformation unfinished for you to implement.
+This patch contains the **starter code needed to  add a new compiler pass with `nl_opt`**. The [`todo!`](./pass_template.patch#L24-L26) intentionally leaves the actual transformation unfinished for you to implement.
 
 Apply it with [the `patch` Makefile target](./Makefile#L18-L20):
 
@@ -278,7 +262,7 @@ The important unfinished portion is:
 > }
 > ```
 
-> Find every cell in the netlist whose type is [`CellType::FA`](../safety-pass/src/cells.rs#L68) then perform some operation on it.
+This snippet of code finds every cell in the netlist whose type is [`CellType::FA`](../safety-pass/src/cells.rs#L68) then perform some operation on it (which you will fill in).
 
 The patch also [registers `MyPass`](./pass_template.patch#L35-L42) with the command-line program. This makes `-p my-pass` available through the pass registry and allows it to be selected using:
 
@@ -293,22 +277,20 @@ Your goal is to modify every full adder so that its `A` and `B` inputs are swapp
 Before:
 
 > ```
-> a[i] -> A
-> b[i] -> B
+> a[i] drives A input
+> b[i] drives B input
 > ```
 
 After:
 
 > ```
-> b[i] -> A
-> a[i] -> B
+> b[i] drives A input
+> a[i] drives B input
 > ```
 
-This should not change the behavior of the circuit because [the full-adder logic](./cells.v#L2-L13) treats `A` and `B` symmetrically.
+This should not change the behavior of the circuit because [the full-adder logic](./cells.v#L2-L13) treats `A` and `B` symmetrically (i.e. addition is commutative).
 
-Implement the transformation inside the unfinished [`MyPass`](./pass_template.patch#L9-L30).
-
-Some useful methods are:
+Here are some useful methods to help you accomplish this rewrite:
 
 [`find_input(...)`](https://matth2k.github.io/safety-pass/safety_net/trait.Instantiable.html#method.find_input)
 
@@ -329,9 +311,9 @@ A useful approach is:
 3. Save both original drivers
 4. Connect `A` to the original `B` driver
 5. Connect `B` to the original `A` driver
-6. Count how many full adders were modified
+6. Return a string message to the user on how many full adders were modified
 
-It is important to make **temporary variables** to save the original drivers such that they can be swapped.
+You will need to make **temporary variables** to save the original drivers such that they can be swapped.
 
 Check and run the implementation:
 
@@ -340,15 +322,11 @@ cargo check
 cargo run --release --quiet -- rca.v -p my-pass
 ```
 
-Should report:
+Depending on the return message you wrote, you should see something like:
 
 > `Swapped A and B inputs on 4 full adders`
 
 A reference solution is provided separately in [`pass_solution.patch`](./pass_solution.patch).
-
-It [changes the template into a finished implementation](./pass_solution.patch#L14-L44) and is intentionally separate from [`pass_template.patch`](./pass_template.patch) so that the solution itself is not part of the normal `safety-pass` source code.
-
-The solution patch assumes that `pass_template.patch` has already been applied and that `MyPass` is still in its original starter state.
 
 If you want to apply the reference solution immediately after `make patch`, [the `solution` Makefile target](./Makefile#L22-L24) applies [`pass_solution.patch`](./pass_solution.patch):
 
@@ -358,7 +336,7 @@ make solution
 
 ## 8. Observing the structural change
 
-Run `MyPass` followed by the [`dot-graph` pass](../safety-pass/src/passes.rs#L87-L112) in the same pipeline (the [`nl_opt` pipeline handling](../nl_opt/src/main.rs#L125-L137) preserves that order):
+Run `MyPass` followed by the [`dot-graph` pass](../safety-pass/src/passes.rs#L87-L112) in the same pipeline (the [`nl_opt` pipeline handling](../nl_opt/src/main.rs#L125-L137) runs the passes in the order of the command arguments):
 
 ```bash
 cargo run --release --quiet -- rca.v \
@@ -410,9 +388,9 @@ verilator --cc --exe --build \
     rca_main.cpp cells.v rca_swapped.v
 ```
 
-[`cells.v`](./cells.v) is included because `rca_swapped.v` contains the transformed `rca` module but still relies on [the separate `FA` module definition](./cells.v#L2-L13).
+[`cells.v`](./cells.v) is included in order to provide the [the separate `FA` module definition](./cells.v#L2-L13).
 
-Run the transformed simulation:
+Lastly, run the simulation on the transformed circuit:
 
 ```bash
 ./obj_dir_swapped/Vrca
@@ -425,7 +403,7 @@ Run the transformed simulation:
 Congratulations! Here's what you accomplished:
 
 1. Compile Verilog into a safety-net netlist
-2. Find cells of a specific type
+2. Traverse cells of a specific type
 3. Inspect and modify their connections
 4. Visualize the transformed structure
 5. Emit the transformed netlist as Verilog
@@ -433,8 +411,8 @@ Congratulations! Here's what you accomplished:
 
 ## Interested?
 
-Try it: install nl_opt and run a built-in pass.
+Try it: install nl_opt with cargo `cargo install nl_opt`
 
-Learn it: complete the circuit-repair tutorial.
+Learn it: Safety-pass provides the compiler infrastructure while safety-net is the actual IR API: https://matth2k.github.io/safety-net/safety_net/index.html
 
-Extend it: implement a reusable Rust pass or rewrite pattern.
+Extend it: Try to provide an EDIF or BLIF frontend to safety-net: https://github.com/matth2k/nl-compiler
