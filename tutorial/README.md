@@ -47,48 +47,7 @@ dot -V
 verilator --version
 ```
 
-### Common setup errors
-
-If you see:
-
-> `dot: command not found`
-
-install Graphviz. The Rust `Broken pipe` message is only a consequence of the missing `dot` command.
-
-If you see:
-
-> `make: verilator: No such file or directory`
-
-install Verilator and run the command again.
-
-If a program is installed but your terminal still cannot find it, check your `PATH` environment variable. `PATH` is the list of directories your shell searches when you type a command.
-
-```bash
-echo $PATH
-command -v dot
-command -v verilator
-```
-
-If `command -v` prints nothing, the executable is not currently visible through your `PATH`.
-
-**macOS (Homebrew):**
-
-You can find Homebrew's installation directory with:
-
-```bash
-brew --prefix
-```
-
-Make sure its `bin` directory is included in your `PATH`.
-
-**Ubuntu/Debian:**
-
-Programs installed with `apt` are normally placed in standard locations such as `/usr/bin`, which should already be in your `PATH`. You can check with:
-
-```bash
-ls -l /usr/bin/dot
-ls -l /usr/bin/verilator
-```
+If things are not working, checkout [common setup errors](#common-setup-errors).
 
 ## 1. Download the tutorial, create a work branch
 
@@ -242,7 +201,7 @@ Rather than manually writing all the boilerplate required to add a new pass, the
 
 `pass_template.patch`
 
-This patch contains the **starter code needed to  add a new compiler pass with `nl_opt`**. The [`todo!`](./pass_template.patch#L24-L26) intentionally leaves the actual transformation unfinished for you to implement.
+This patch contains the **starter code needed to add a new compiler pass with `nl_opt`**. The [`todo!`](./pass_template.patch#L24-L26) intentionally leaves the actual transformation unfinished for you to implement.
 
 Apply it with [the `patch` Makefile target](./Makefile#L18-L20):
 
@@ -408,6 +367,49 @@ Congratulations! Here's what you accomplished:
 4. Visualize the transformed structure
 5. Emit the transformed netlist as Verilog
 6. Verify that the transformation preserves behavior
+
+## Common setup errors
+
+If you see:
+
+> `dot: command not found`
+
+install Graphviz. The Rust `Broken pipe` message is only a consequence of the missing `dot` command.
+
+If you see:
+
+> `make: verilator: No such file or directory`
+
+install Verilator and run the command again.
+
+If a program is installed but your terminal still cannot find it, check your `PATH` environment variable. `PATH` is the list of directories your shell searches when you type a command.
+
+```bash
+echo $PATH
+which dot
+which verilator
+```
+
+If `which` prints nothing, the executable is not currently visible through your `PATH`.
+
+**macOS (Homebrew):**
+
+You can find Homebrew's installation directory with:
+
+```bash
+brew --prefix
+```
+
+Make sure its `bin` directory is included in your `PATH`.
+
+**Ubuntu/Debian:**
+
+Programs installed with `apt` are normally placed in standard locations such as `/usr/bin`, which should already be in your `PATH`. You can check with:
+
+```bash
+ls -l /usr/bin/dot
+ls -l /usr/bin/verilator
+```
 
 ## Interested?
 
